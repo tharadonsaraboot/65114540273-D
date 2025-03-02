@@ -17,6 +17,14 @@
         .action-buttons {
             margin-bottom: 1rem;
         }
+        .success-message {
+            animation: fadeOut 5s forwards;
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -38,7 +46,15 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if mode == 'search' %}active{% endif %}" 
-                           href="{% url 'course_management' %}?mode=search">ค้นหารายวิชา</a>
+                           href="{% url 'course_management' %}?mode=search">ค้นหาจากรหัสวิชา</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if mode == 'search_name' %}active{% endif %}" 
+                           href="{% url 'course_management' %}?mode=search_name">ค้นหาจากชื่อวิชา</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if mode == 'delete' %}active{% endif %}" 
+                           href="{% url 'course_management' %}?mode=delete">ลบรายวิชา</a>
                     </li>
                 </ul>
             </div>
@@ -46,12 +62,21 @@
     </nav>
 
     <div class="container">
+        <!-- แสดงข้อความแจ้งเตือนความสำเร็จ -->
+        {% if success_message %}
+        <div class="alert alert-success success-message mb-3">
+            {{ success_message }}
+        </div>
+        {% endif %}
+
         <!-- แสดงรายการวิชาทั้งหมด -->
         {% if mode == 'list' %}
-            <h1 class="mb-3">รายการวิชาทั้งหมด</h1>
+            <h1 class="mb-3">รายการวิชาทั้งหมดในหลักสูตร</h1>
             <div class="action-buttons">
                 <a href="{% url 'course_management' %}?mode=create" class="btn btn-success">เพิ่มรายวิชาใหม่</a>
-                <a href="{% url 'course_management' %}?mode=search" class="btn btn-primary">ค้นหารายวิชา</a>
+                <a href="{% url 'course_management' %}?mode=search" class="btn btn-primary">ค้นหาจากรหัสวิชา</a>
+                <a href="{% url 'course_management' %}?mode=search_name" class="btn btn-info">ค้นหาจากชื่อวิชา</a>
+                <a href="{% url 'course_management' %}?mode=delete" class="btn btn-danger">ลบรายวิชา</a>
             </div>
 
             {% if courses %}
@@ -86,9 +111,9 @@
                 <div class="alert alert-info">ยังไม่มีข้อมูลรายวิชา</div>
             {% endif %}
         
-        <!-- แบบฟอร์มค้นหารายวิชา -->
+        <!-- แบบฟอร์มค้นหารายวิชาจากรหัสวิชา -->
         {% elif mode == 'search' %}
-            <h1 class="mb-3">ค้นหารายวิชาเพื่อแก้ไข</h1>
+            <h1 class="mb-3">ค้นหารายวิชาจากรหัสวิชา</h1>
             
             <form method="post">
                 {% csrf_token %}
@@ -97,7 +122,7 @@
                     <input type="text" class="form-control" id="course_code" name="course_code" required>
                     <div class="form-text">กรุณาระบุรหัสวิชาที่ต้องการค้นหา เช่น CS101</div>
                 </div>
-                <button type="submit" name="search" class="btn btn-primary">ค้นหา</button>
+                <button type="submit" name="search_code" class="btn btn-primary">ค้นหา</button>
                 <a href="{% url 'course_management' %}" class="btn btn-secondary">กลับไปยังรายการวิชา</a>
             </form>
             
@@ -107,6 +132,77 @@
                 <div class="mt-2">
                     <a href="{% url 'course_management' %}?mode=create" class="btn btn-success">เพิ่มรายวิชาใหม่</a>
                 </div>
+            </div>
+            {% endif %}
+        
+        <!-- แบบฟอร์มค้นหารายวิชาจากชื่อวิชา -->
+        {% elif mode == 'search_name' %}
+            <h1 class="mb-3">ค้นหารายวิชาจากชื่อวิชา</h1>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="course_name" class="form-label">ชื่อวิชา</label>
+                    <input type="text" class="form-control" id="course_name" name="course_name" required>
+                    <div class="form-text">กรุณาระบุชื่อวิชาหรือบางส่วนของชื่อวิชาที่ต้องการค้นหา</div>
+                </div>
+                <button type="submit" name="search_name" class="btn btn-primary">ค้นหา</button>
+                <a href="{% url 'course_management' %}" class="btn btn-secondary">กลับไปยังรายการวิชา</a>
+            </form>
+            
+            {% if search_results %}
+            <h3 class="mt-4">ผลการค้นหา</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>รหัสวิชา</th>
+                            <th>ชื่อวิชา</th>
+                            <th>หน่วยกิต</th>
+                            <th>อาจารย์ผู้สอน</th>
+                            <th>การดำเนินการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in search_results %}
+                        <tr>
+                            <td>{{ course.course_code }}</td>
+                            <td>{{ course.course_name }}</td>
+                            <td>{{ course.credits }}</td>
+                            <td>{{ course.instructor }}</td>
+                            <td>
+                                <a href="{% url 'course_management_with_code' course.course_code %}?mode=edit" 
+                                   class="btn btn-sm btn-warning">แก้ไข</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% elif error_message %}
+            <div class="alert alert-danger mt-3">
+                {{ error_message }}
+            </div>
+            {% endif %}
+        
+        <!-- แบบฟอร์มลบรายวิชาจากรหัสวิชา -->
+        {% elif mode == 'delete' %}
+            <h1 class="mb-3">ลบรายวิชาจากรหัสวิชา</h1>
+            
+            <form method="post" onsubmit="return confirm('คุณแน่ใจหรือไม่ที่จะลบรายวิชานี้? การกระทำนี้ไม่สามารถยกเลิกได้');">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="course_code" class="form-label">รหัสวิชาที่ต้องการลบ</label>
+                    <input type="text" class="form-control" id="course_code" name="course_code" required>
+                    <div class="form-text text-danger">คำเตือน: การลบรายวิชาไม่สามารถเรียกคืนได้</div>
+                </div>
+                <button type="submit" name="delete" class="btn btn-danger">ลบรายวิชา</button>
+                <a href="{% url 'course_management' %}" class="btn btn-secondary">ยกเลิก</a>
+            </form>
+            
+            {% if error_message %}
+            <div class="alert alert-danger mt-3">
+                {{ error_message }}
             </div>
             {% endif %}
         
@@ -160,5 +256,14 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ซ่อนข้อความแจ้งเตือนความสำเร็จหลังจาก 5 วินาที
+        setTimeout(function() {
+            var successMessages = document.getElementsByClassName('success-message');
+            for (var i = 0; i < successMessages.length; i++) {
+                successMessages[i].style.display = 'none';
+            }
+        }, 5000);
+    </script>
 </body>
 </html>
